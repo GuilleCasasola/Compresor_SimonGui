@@ -48,21 +48,20 @@ def comprimir():
     dictionary = dict((chr(i), i) for i in range(dict_size))
     # in Python 3: dictionary = {chr(i): i for i in range(dict_size)}
 
-    with open(rutaArchivo, "r") as f:
+    with open(rutaArchivo, "rb") as f:
 
         byte = f.read(1)
         w = ""
         result = BitStream()
         bits = 9
         while byte:
-            c = byte
+            c = chr(int.from_bytes(byte , byteorder='little'))
             wc = w + c
             if wc in dictionary:
                 w = wc
             else:
                 result.append('uint:'+str(bits)+'='+str(dictionary[w]))
-                print(dictionary[w])
-                print(result.bin)
+
                 dictionary[wc] = dict_size
                 dict_size += 1
                 if dict_size > pow(2,bits):
@@ -71,19 +70,18 @@ def comprimir():
             byte = f.read(1)
 
         if w:
-            result.append('uint:9='+str(dictionary[w]))
+            result.append('uint:'+str(bits)+'='+str(dictionary[w]))
 
 
         comprimido = open("compri.sg", "wb")
         # comprimido.write(result.tobytes())
         result.tofile(comprimido)
         comprimido.close()
+        print("ARCHIVO COMPRIMIDO")
 
 
 
 def decompress():
-    """Decompress a list of output ks to a string."""
-    from io import StringIO
 
     # Build the dictionary.
     dict_size = 256
@@ -91,10 +89,11 @@ def decompress():
     #dictionary = dict((i, chr(i)) for i in range(dict_size))
     dictionary = {i: chr(i) for i in range(dict_size)}
     # in Python 3: dictionary = {i: chr(i) for i in range(dict_size)}
-
+    import io
     # use StringIO, otherwise this becomes O(N^2)
     # due to string concatenation in a loop
-    result = open("compri.txt", "w")
+    #result = open("descompri.txt", "w")
+    result = io.open("descompri.txt", "w", encoding="utf-8")
     compressed= ConstBitStream(filename=rutaArchivo2)
     w = chr(compressed.read('uint:'+str(bits)))
     result.write(w)
@@ -107,7 +106,6 @@ def decompress():
         else:
             raise ValueError('Bad compressed k: %s' % k)
         result.write(entry)
-
         # Add w+entry[0] to the dictionary.
         dictionary[dict_size] = w + entry[0]
         dict_size += 1
@@ -120,6 +118,7 @@ def decompress():
 
     result.write(dictionary[k])
     result.close()
+    print("ARCHIVO DESCOMPRIMIDO")
 
 
 
