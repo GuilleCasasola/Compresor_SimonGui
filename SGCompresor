@@ -2,9 +2,6 @@ from tkinter import *
 from tkinter import filedialog as fd
 from bitstring import *
 import os.path
-from pyxform.utils import unichr
-import numpy as np
-from tkinter import messagebox
 
 # Para hacer la interfaz grafica usamos la libreria tkinter que viene con python
 window = Tk()
@@ -86,10 +83,6 @@ def comprimir():
 
 
 def decompress():
-    """Decompress a list of output ks to a string."""
-    from io import StringIO
-
-    # Build the dictionary.
     dict_size = 256
     bits = 9
     dictionary = {i: chr(i) for i in range(dict_size)}

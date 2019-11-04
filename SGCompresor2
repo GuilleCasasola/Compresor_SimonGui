@@ -2,9 +2,7 @@ from tkinter import *
 from tkinter import filedialog as fd
 from bitstring import *
 import os.path
-from pyxform.utils import unichr
-import numpy as np
-from tkinter import messagebox
+
 
 # Para hacer la interfaz grafica usamos la libreria tkinter que viene con python
 window = Tk()
@@ -15,10 +13,8 @@ lbl = Label(window, text="")
 lbl.grid(column=0, row=1)
 lbl2 = Label(window, text="")
 lbl2.grid(column=0, row=5)
-rutaArchivo=""
-rutaArchivo2=""
-
-dicCompresion = dict()
+rutaArchivo = ""
+rutaArchivo2 = ""
 
 def clicked():
     # Seleccionamos un archivo con la ayuda de filedialog
@@ -50,10 +46,8 @@ def clicked2():
 
 def comprimir():
 
-    # Build the dictionary.
     dict_size = 256
-    dictionary = dict((chr(i), i) for i in range(dict_size))
-    # in Python 3: dictionary = {chr(i): i for i in range(dict_size)}
+    dictionary = {chr(i): i for i in range(dict_size)}
 
     with open(rutaArchivo, "rb") as f:
         nombre = os.path.basename(f.name)
@@ -64,19 +58,12 @@ def comprimir():
         while byte:
             c = byte
             wc = w + c
-
-
-            if dictionary[c] == 10:
-                print(10)
-            elif dictionary[c] == 13:
-                print(13)
-
-
             if wc in dictionary:
                 w = wc
             else:
+                print(dictionary[w], end=": ")
+                print(wc)
                 result.append('uint:' + str(bits) + '=' + str(dictionary[w]))
-
                 dictionary[wc] = dict_size
                 dict_size += 1
                 if dict_size > pow(2, bits):
@@ -86,14 +73,11 @@ def comprimir():
 
         if w:
             result.append('uint:' + str(bits) + '=' + str(dictionary[w]))
-
         comprimido = open(nombre+".sg", "wb")
         result.tofile(comprimido)
         comprimido.close()
+        print('Diccionario: ' + str(len(dictionary)))
         print("ARCHIVO COMPRIMIDO")
-        global dicCompresion
-        dicCompresion = dictionary
-
 
 
 def decompress():
@@ -121,10 +105,10 @@ def decompress():
             raise ValueError('Bad compressed k: %s' % k)
         result.write(entry.encode('latin-1'))
 
-        # Add w+entry[0] to the dictionary.
+        # agregar entry al diccionario
         dictionary[dict_size] = w + entry[0]
         dict_size += 1
-        if dict_size >= pow(2,bits):
+        if dict_size >= pow(2, bits):
             bits += 1
 
         w = entry
@@ -133,26 +117,9 @@ def decompress():
 
     result.write(dictionary[k].encode('latin-1'))
     result.close()
-    print('DESCOMPRIMIDO')
+    print('Diccionario: '+str(len(dictionary)))
+    print('ARCHIVO DESCOMPRIMIDO')
 
-    global dicCompresion
-    res = dict((v, k) for k, v in dictionary.items())
-    if res == dicCompresion:
-        print('equal')
-
-    from collections import OrderedDict
-
-    dicCompresion = OrderedDict(dicCompresion)
-    dictionary =  OrderedDict(dictionary)
-
-    for key, value in dictionary.items():
-        if key != dicCompresion[value]:
-            print('k='+str(key)+'v='+value)
-            del dicCompresion[value]
-            del dictionary[key]
-
-    print(dictionary)
-    print(dicCompresion)
 
 btn = Button(window, text="Seleccionar Archivo a Comprimir", command=clicked, anchor=CENTER)
 btn.grid(column=0, row=0)
