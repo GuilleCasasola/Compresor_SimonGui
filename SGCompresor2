@@ -1,3 +1,17 @@
+def install_and_import(package):
+    import importlib
+    try:
+        importlib.import_module(package)
+    except ImportError:
+        import pip
+        pip.main(['install', package])
+    finally:
+        globals()[package] = importlib.import_module(package)
+
+install_and_import('tkinter')
+install_and_import('bitstring')
+install_and_import('os')
+
 from tkinter import *
 from tkinter import filedialog as fd
 from bitstring import *
@@ -13,8 +27,15 @@ lbl = Label(window, text="")
 lbl.grid(column=0, row=1)
 lbl2 = Label(window, text="")
 lbl2.grid(column=0, row=5)
+
+status = StringVar(window)
+labelStatus = Label(window, textvariable=status)
+status.set('Bienvenido a SGCompresor')
+
+labelStatus.grid(column=0, row=8)
 rutaArchivo = ""
 rutaArchivo2 = ""
+
 
 def clicked():
     # Seleccionamos un archivo con la ayuda de filedialog
@@ -45,86 +66,101 @@ def clicked2():
 
 
 def comprimir():
-
+    status.set('Inicializando...')
     dict_size = 256
     dictionary = {chr(i): i for i in range(dict_size)}
-
     with open(rutaArchivo, "rb") as f:
         nombre = os.path.basename(f.name)
-        byte = f.read(1).decode('latin-1')
+        size = os.path.getsize(rutaArchivo)
+        byteCount = 0
+        byte = f.read(1).decode('latin-1')  # leemos un byte y lo decodificamos a un caracter
         w = ""
         result = BitStream()
         bits = 9
         while byte:
+            byteCount += 1
+            status.set(str(round(byteCount/size*100, 2))+'% completado')
+            window.update()
             c = byte
-            wc = w + c
+            wc = w + c  # caracter anterior y el actual
             if wc in dictionary:
-                w = wc
+                w = wc  # se coloca wc como anterior
             else:
                 print(dictionary[w], end=": ")
                 print(wc)
-                result.append('uint:' + str(bits) + '=' + str(dictionary[w]))
-                dictionary[wc] = dict_size
-                dict_size += 1
-                if dict_size > pow(2, bits):
-                    bits += 1
-                w = c
-            byte = f.read(1).decode('latin-1')
+                result.append('uint:' + str(bits) + '=' + str(dictionary[w]))  # se toma el numero entero correspondiente
+                # al caracter w, se lo pasa a su representacion binaria y se lo agrega al resultado
+                dictionary[wc] = dict_size # se guarda en la ultima posicion del diccionario la cadena de simbolos wc
+                dict_size += 1 # se aumenta el tamano del diccionario
+                if dict_size > pow(2, bits):  # si el tamano del diccionario aumenta mas alla de la capacidad de direccionamiento
+                    bits += 1                   # que se tiene con la cantidad de bits actual, se aumenta esta cantidad
+                w = c   # el caracter actual pasa a ser el anterior
+            byte = f.read(1).decode('latin-1') # se lee el proximo byte
 
         if w:
-            result.append('uint:' + str(bits) + '=' + str(dictionary[w]))
+            result.append('uint:' + str(bits) + '=' + str(dictionary[w])) # agrega el ultimo caracter a la cadena
+
         comprimido = open(nombre+".sg", "wb")
         result.tofile(comprimido)
         comprimido.close()
         print('Diccionario: ' + str(len(dictionary)))
         print("ARCHIVO COMPRIMIDO")
+        status.set('Archivo comprimido')
 
 
 def decompress():
     """Decompress a list of output ks to a string."""
-    from io import StringIO
+    status.set('Inicializando...')
 
     # Build the dictionary.
     dict_size = 256
     bits = 9
     dictionary = {i: chr(i) for i in range(dict_size)}
 
-    compressed = ConstBitStream(filename=rutaArchivo2)
+    compressed = ConstBitStream(filename=rutaArchivo2) # archivo comprimido
     nombre = os.path.basename(rutaArchivo2).replace('.sg', '')
-    result = open('Descomprimido'+nombre, "wb")
+    result = open('Descomprimido'+nombre, "wb")  # archivo donde se guardara el descomprimido
 
-    w = chr(compressed.read('uint:'+str(bits)))
+    w = chr(compressed.read('uint:'+str(bits))) # primer caracter leido directamente lo decodificamos y lo agregamos al resultado
     result.write(w.encode('latin-1'))
-    k = compressed.read('uint:'+str(bits))
+    k = compressed.read('uint:'+str(bits)) # segundo caracter leido, en forma de entero sin signo que indica posicion de memoria
     while compressed.pos+bits <= compressed.len:
-        if k in dictionary:
-            entry = dictionary[k]
-        elif k == dict_size:
-            entry = w + w[0]
+
+        status.set(str(round(compressed.pos / compressed.len * 100, 2)) + '% completado')
+        window.update()
+
+        if k in dictionary:  # la posicion de memoria esta utilizada
+            entry = dictionary[k]  # saco entry del diccionario
+        elif k == dict_size:    # si la posicion de memoria k no esta utilizada y es la ultima
+            entry = w + w[0]    # entry =  cadena + primer caracter ejemplo: si ACB, entry = ACBA
         else:
-            raise ValueError('Bad compressed k: %s' % k)
-        result.write(entry.encode('latin-1'))
+            raise ValueError('Mala compresion en k: %s' % k) #  si no esta utilizada la posicion de memoria k y no es la ultima, error
+        result.write(entry.encode('latin-1')) #  se agrega la entrada completa
 
         # agregar entry al diccionario
-        dictionary[dict_size] = w + entry[0]
-        dict_size += 1
+        dictionary[dict_size] = w + entry[0] #  el caracter anterior y el primero de entry al diccionario en la ultima posicion
+        dict_size += 1 # se incrementa el tamano del diccionario
+
         if dict_size >= pow(2, bits):
             bits += 1
 
         w = entry
 
-        k = compressed.read('uint:'+str(bits))
+        k = compressed.read('uint:'+str(bits))  # se lee el proximo grupo de bits
+
 
     result.write(dictionary[k].encode('latin-1'))
     result.close()
     print('Diccionario: '+str(len(dictionary)))
     print('ARCHIVO DESCOMPRIMIDO')
+    status.set('Archivo descomprimido')
 
 
 btn = Button(window, text="Seleccionar Archivo a Comprimir", command=clicked, anchor=CENTER)
 btn.grid(column=0, row=0)
 btn2 = Button(window, text="Comprimir", command=comprimir, anchor=CENTER)
 btn2.grid(column=0 ,  row=2)
+
 
 btn3 = Button(window, text="Seleccionar Archivo a Descomprimir", command=clicked2, anchor=CENTER)
 btn3.grid(column=0 ,  row=4)
