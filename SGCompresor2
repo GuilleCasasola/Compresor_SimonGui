@@ -109,10 +109,8 @@ def comprimir():
 
 
 def decompress():
-    """Decompress a list of output ks to a string."""
     status.set('Inicializando...')
 
-    # Build the dictionary.
     dict_size = 256
     bits = 9
     dictionary = {i: chr(i) for i in range(dict_size)}
